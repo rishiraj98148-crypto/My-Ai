@@ -11,20 +11,28 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+
+      # 1. Checkout project
       - name: Checkout project
         uses: actions/checkout@v4
 
+
+      # 2. Setup Java
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "21"
 
+
+      # 3. Setup Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "22"
 
+
+      # 4. Find My AI ZIP
       - name: Find My AI ZIP
         run: |
           ZIP_FILE=$(find . -maxdepth 2 -type f -iname "*.zip" | head -n 1)
@@ -37,6 +45,8 @@ jobs:
           echo "Found ZIP: $ZIP_FILE"
           echo "ZIP_FILE=$ZIP_FILE" >> "$GITHUB_ENV"
 
+
+      # 5. Extract My AI
       - name: Extract My AI
         run: |
           rm -rf www extracted
@@ -52,11 +62,14 @@ jobs:
           fi
 
           INDEX_DIR=$(dirname "$INDEX_FILE")
+
           cp -r "$INDEX_DIR"/. www/
 
           echo "Website files:"
           ls -la www
 
+
+      # 6. Create package.json
       - name: Create package.json
         run: |
           cat > package.json <<'EOF'
@@ -75,9 +88,14 @@ jobs:
           }
           EOF
 
-      - name: Install dependencies
-        run: npm install
 
+      # 7. Install dependencies
+      - name: Install dependencies
+        run: |
+          npm install
+
+
+      # 8. Create Capacitor config
       - name: Create Capacitor config
         run: |
           cat > capacitor.config.json <<'EOF'
@@ -88,9 +106,20 @@ jobs:
           }
           EOF
 
-      - name: Add Android
-        run: npx cap add android
 
+      # 9. Add Android
+      - name: Add Android
+        run: |
+          npx cap add android
+
+
+      # 10. Sync Android
+      - name: Sync Android
+        run: |
+          npx cap sync android
+
+
+      # 11. Configure AdMob App ID
       - name: Configure AdMob App ID
         run: |
           mkdir -p android/app/src/main/res/values
@@ -102,45 +131,105 @@ jobs:
           </resources>
           EOF
 
+
+      # 12. Add AdMob metadata correctly
+      - name: Add AdMob metadata
+        run: |
           python3 - <<'PY'
+          import re
           from pathlib import Path
 
-          manifest = Path("android/app/src/main/AndroidManifest.xml")
+          manifest = Path(
+              "android/app/src/main/AndroidManifest.xml"
+          )
+
           text = manifest.read_text()
 
-          meta = '''
-              <meta-data
-                  android:name="com.google.android.gms.ads.APPLICATION_ID"
-                  android:value="@string/admob_app_id" />
-          '''
+          meta = """        <meta-data
+              android:name="com.google.android.gms.ads.APPLICATION_ID"
+              android:value="@string/admob_app_id" />"""
 
+          # Do not add it twice
           if "com.google.android.gms.ads.APPLICATION_ID" not in text:
-              text = text.replace(
-                  "<application",
-                  "<application" + meta,
-                  1
+
+              pattern = r"(<application\b[^>]*>)"
+
+              text, count = re.subn(
+                  pattern,
+                  lambda match: match.group(1) + "\n" + meta,
+                  text,
+                  count=1
               )
 
-          manifest.write_text(text)
+              if count != 1:
+                  raise SystemExit(
+                      "ERROR: <application> tag not found."
+                  )
+
+              manifest.write_text(text)
+
+          print("AdMob metadata configured successfully.")
+
+          print("\nFinal AndroidManifest.xml:")
+          print(manifest.read_text())
           PY
 
-      - name: Sync Android
-        run: npx cap sync android
 
+      # 13. Verify Android Manifest
+      - name: Verify Android Manifest
+        run: |
+          echo "Checking AndroidManifest.xml..."
+
+          if grep -q "com.google.android.gms.ads.APPLICATION_ID" \
+            android/app/src/main/AndroidManifest.xml; then
+
+            echo "AdMob App ID metadata found."
+
+          else
+
+            echo "ERROR: AdMob metadata not found."
+            exit 1
+
+          fi
+
+          echo "Checking AdMob App ID..."
+
+          if grep -q "admob_app_id" \
+            android/app/src/main/res/values/admob_strings.xml; then
+
+            echo "AdMob App ID found."
+
+          else
+
+            echo "ERROR: AdMob App ID not found."
+            exit 1
+
+          fi
+
+
+      # 14. Build Debug APK
       - name: Build Debug APK
         working-directory: android
-        run: ./gradlew assembleDebug --stacktrace
+        run: |
+          ./gradlew assembleDebug --stacktrace
 
+
+      # 15. Build Release AAB
       - name: Build Release AAB
         working-directory: android
-        run: ./gradlew bundleRelease --stacktrace
+        run: |
+          ./gradlew bundleRelease --stacktrace
 
+
+      # 16. Upload APK
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: My-AI-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
 
+
+      # 17. Upload AAB
       - name: Upload AAB
         uses: actions/upload-artifact@v4
         with:
