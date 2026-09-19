@@ -35,12 +35,12 @@ jobs:
           fi
 
           echo "Found ZIP: $ZIP_FILE"
-          echo "ZIP_FILE=$ZIP_FILE" >> $GITHUB_ENV
+          echo "ZIP_FILE=$ZIP_FILE" >> "$GITHUB_ENV"
 
       - name: Extract My AI
         run: |
-          rm -rf www
-          mkdir -p www
+          rm -rf www extracted
+          mkdir -p www extracted
 
           unzip -o "$ZIP_FILE" -d extracted
 
@@ -52,7 +52,6 @@ jobs:
           fi
 
           INDEX_DIR=$(dirname "$INDEX_FILE")
-
           cp -r "$INDEX_DIR"/. www/
 
           echo "Website files:"
@@ -65,14 +64,11 @@ jobs:
             "name": "my-ai-app",
             "version": "1.0.0",
             "private": true,
-            "scripts": {
-              "build": "echo My AI"
-            },
             "dependencies": {
-              "@capacitor/core": "^7.4.3",
-              "@capacitor/android": "^7.4.3",
-              "@capacitor/cli": "^7.4.3",
-              "@capacitor-community/speech-recognition": "^7.0.1",
+              "@capacitor/core": "^8.0.0",
+              "@capacitor/android": "^8.0.0",
+              "@capacitor/cli": "^8.0.0",
+              "@capacitor-community/speech-recognition": "^8.0.0",
               "@capacitor-community/text-to-speech": "^8.0.2"
             }
           }
