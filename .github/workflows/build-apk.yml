@@ -69,7 +69,8 @@ jobs:
               "@capacitor/android": "^8.0.0",
               "@capacitor/cli": "^8.0.0",
               "@capacitor-community/speech-recognition": "^7.0.1",
-              "@capacitor-community/text-to-speech": "^8.0.2"
+              "@capacitor-community/text-to-speech": "^8.0.2",
+              "@capacitor-community/admob": "^8.0.0"
             }
           }
           EOF
@@ -89,6 +90,39 @@ jobs:
 
       - name: Add Android
         run: npx cap add android
+
+      - name: Configure AdMob App ID
+        run: |
+          mkdir -p android/app/src/main/res/values
+
+          cat > android/app/src/main/res/values/admob_strings.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <string name="admob_app_id">ca-app-pub-3308425772475057~8246998513</string>
+          </resources>
+          EOF
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          manifest = Path("android/app/src/main/AndroidManifest.xml")
+          text = manifest.read_text()
+
+          meta = '''
+              <meta-data
+                  android:name="com.google.android.gms.ads.APPLICATION_ID"
+                  android:value="@string/admob_app_id" />
+          '''
+
+          if "com.google.android.gms.ads.APPLICATION_ID" not in text:
+              text = text.replace(
+                  "<application",
+                  "<application" + meta,
+                  1
+              )
+
+          manifest.write_text(text)
+          PY
 
       - name: Sync Android
         run: npx cap sync android
