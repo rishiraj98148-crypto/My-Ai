@@ -1,4 +1,4 @@
-name: Build My AI APK and AAB
+name: Build My AI APK and AAB 
 
 on:
 workflow_dispatch:
